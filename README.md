@@ -1,6 +1,6 @@
 # simulink-parser-py
 
-This module is based on `pyparsing` and exposes two classes, two methods, and two options.
+This module is based on [PyParsing](https://pypi.python.org/pypi/pyparsing) and exposes two classes, two methods, and two options.
 
 ## Classes
 
