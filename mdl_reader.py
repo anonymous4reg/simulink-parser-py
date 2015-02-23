@@ -1,4 +1,5 @@
 from pyparsing import OneOrMore, Group, nestedExpr, quotedString, Forward, Word, Keyword, alphanums
+import copy
 
 use_white_list = True
 
@@ -25,8 +26,6 @@ property_list = [
 
 if 'hide the details' :
 
-  level = 0
-
   class simulink_model :
 
     def __str__(self) :
@@ -37,6 +36,7 @@ if 'hide the details' :
     def __str__(self) :
       return 'simulink system: {name}'.format(name = self.name)
 
+  level = 0
   ParsedModel = simulink_model()
 
   def get_string(one_string) :
@@ -199,64 +199,64 @@ if 'hide the details' :
 
     return block, port_index + 1
 
-  def read_mdl_lib_as_dict(mdl_path) :
+def read_mdl_lib_as_dict(mdl_path) :
 
-    global ParsedModel
+  global ParsedModel
 
-    p = parser.parseFile(mdl_path, True)
+  p = parser.parseFile(mdl_path, True)
 
-    if p[0][0] != 'Library' :
-      print 'Input file is NOT a library (.mdl) but a %s' % p[0][0]
+  if p[0][0] != 'Library' :
+    print 'Input file is NOT a library (.mdl) but a %s' % p[0][0]
 
-    lib = {}
+  lib = {}
+
+  inport_index = 0
+  outport_index = 1
+
+  for func in ParsedModel.system.blocks :
+    name = '%s/%s' % (ParsedModel.system.name, func['Name'])
+    lib[ name ] = {}
+    lib[ name ]['input_ports'] = {}
+    lib[ name ]['output_ports'] = {}
+    system = func['System']
 
     inport_index = 0
-    outport_index = 1
+    outport_index = 0
 
-    for func in ParsedModel.system.blocks :
-      name = '%s/%s' % (ParsedModel.system.name, func['Name'])
-      lib[ name ] = {}
-      lib[ name ]['input_ports'] = {}
-      lib[ name ]['output_ports'] = {}
-      system = func['System']
+    for port in system.blocks :
+      if port['BlockType'] == 'Inport' :
+        port_name, type_count = port['Name'].split(':')
+        port_name.replace(' ', '')
 
-      inport_index = 0
-      outport_index = 0
+        token_type, token_size, token_count \
+        = read_type_count(type_count)
 
-      for port in system.blocks :
-        if port['BlockType'] == 'Inport' :
-          port_name, type_count = port['Name'].split(':')
-          port_name.replace(' ', '')
+        lib[ name ], inport_index \
+        = record_port(lib[ name ], inport_index,
+            port_name, token_type, token_size, token_count,
+            io = 'in')
 
-          token_type, token_size, token_count \
-          = read_type_count(type_count)
+      elif port['BlockType'] == 'Outport' :
 
-          lib[ name ], inport_index \
-          = record_port(lib[ name ], inport_index,
-              port_name, token_type, token_size, token_count,
-              io = 'in')
+        port_name, type_count = port['Name'].split(':')
+        port_name.replace(' ', '')
 
-        elif port['BlockType'] == 'Outport' :
+        token_type, token_size, token_count \
+        = read_type_count(type_count)
 
-          port_name, type_count = port['Name'].split(':')
-          port_name.replace(' ', '')
+        lib[ name ], outport_index \
+        = record_port(lib[ name ], outport_index,
+            port_name, token_type, token_size, token_count,
+            io = 'out')
 
-          token_type, token_size, token_count \
-          = read_type_count(type_count)
+  return lib
 
-          lib[ name ], outport_index \
-          = record_port(lib[ name ], outport_index,
-              port_name, token_type, token_size, token_count,
-              io = 'out')
+def read_mdl_model(mdl_path) :
 
-    return lib
+  global ParsedModel
+  p = parser.parseFile(mdl_path, True)
 
-  def read_mdl_model(mdl_path) :
+  if p[0][0] != 'Model' :
+    print 'Input file is NOT a ParsedModel (.mdl) but a %s' % p[0][0]
 
-    global ParsedModel
-    p = parser.parseFile(mdl_path, True)
-
-    if p[0][0] != 'Model' :
-      print 'Input file is NOT a ParsedModel (.mdl) but a %s' % p[0][0]
-
-    return ParsedModel
+  return copy.copy(ParsedModel)
